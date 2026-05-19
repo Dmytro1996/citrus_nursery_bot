@@ -6,13 +6,16 @@ Created on Thu May  7 18:08:12 2026
 """
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-from langchain_core.prompts import ChatPromptTemplate
+#from langchain_core.prompts import ChatPromptTemplate
 from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
-from langchain_chroma import Chroma
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
+#from langchain_chroma import Chroma
+#from langchain_core.runnables import RunnablePassthrough
+#from langchain_core.output_parsers import StrOutputParser
 import os
 import nest_asyncio
+import sys
+sys.path.insert(1, os.getcwd() + '/tools/email')
+from email_tool import email_tool
 
 class TelegramAIBot:
     
@@ -71,6 +74,7 @@ llm = ChatHuggingFace(llm = HuggingFaceEndpoint(repo_id="mistralai/Mistral-7B-In
                      ))
 #result = llm.invoke(prompt.format('I can\'t choose between Valencia and Washington Navel orange...'))
 #print(result.content)
+print(type(email_tool))
 nest_asyncio.apply()
 telegram_ai_bot = TelegramAIBot(os.environ['TELEGRAM_AUTH_TOKEN'], llm, prompt)
 telegram_ai_bot.start_polling()
