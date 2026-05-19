@@ -6,7 +6,7 @@ Created on Wed May 13 17:24:30 2026
 """
 import smtplib
 from email.message import EmailMessage
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 import os
 
 def send_email(receiver: str, subject: str, content: str):
