@@ -8,19 +8,34 @@ import sqlalchemy
 from sqlalchemy import text
 import os
 
-os.environ['DB_DIALECT'] = "mysql"
-os.environ['DB_DRIVER'] = "pymysql"
-os.environ['DB_USER'] = "Dmytro"
-os.environ['DB_PASS'] = "Danylov20#"
-os.environ['DB_HOST'] = "localhost"
-os.environ['DB_PORT'] = "3306"
-
 engine = sqlalchemy.create_engine(os.environ['DB_DIALECT'] + '+'
                                   + os.environ['DB_DRIVER'] + '://' 
                                   + os.environ['DB_USER'] + ':'
                                   + os.environ['DB_PASS'] + '@'
                                   + os.environ['DB_HOST'] + ':'
                                   + os.environ['DB_PORT'] + '/citrus_nursery')
+
+def search_citrus_trees(type = None, variety = None, min_price = None, 
+                        max_price = None, quantity = None):
+    query = 'SELECT * FROM citrus_trees'
+    where_conditions = []
+    result = None
+    if(not(type == None)):
+        where_conditions.append('type LIKE \'' + type + '\'')
+    if(not(variety == None)):
+        where_conditions.append('variety LIKE \'' + variety + '\'')
+    if(not(min_price == None)):
+        where_conditions.append('price >= ' + str(min_price))
+    if(not(max_price == None)):
+        where_conditions.append('price <= ' + str(max_price))
+    if(not(quantity == None)):
+        where_conditions.append('quantity >= ' + str(quantity))
+    if(len(where_conditions) >0):
+        query += ' WHERE '
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(query + ' AND '.join(where_conditions))).mappings().all()
+    return result
 
 with engine.connect() as conn:
 
@@ -108,3 +123,8 @@ with engine.connect() as conn:
                                           citrus['price'], 
                                           citrus['quantity'])))
     conn.commit()
+    
+    #print(search_citrus_trees())
+    for record in search_citrus_trees(type = 'Mandarin', min_price = 20, 
+                                      max_price = 25, quantity = 3):
+        print(record)
