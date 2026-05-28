@@ -37,6 +37,28 @@ def search_citrus_trees(type = None, variety = None, min_price = None,
             text(query + ' AND '.join(where_conditions))).mappings().all()
     return result
 
+def create_order(customer_email : str, customer_name : str, 
+                 citrus_trees_ids : list):
+    with engine.connect() as conn:
+        customer_query_result = conn.execute(
+            text('SELECT * FROM customers WHERE email LIKE ' + customer_email))
+        customer_id = None
+        if(len(customer_query_result) > 0):
+            customer_id = customer_query_result.lastidrow
+        else:
+            customer_id = conn.execute(text(
+                'INSERT INTO customers(email, name) VALUES(\'{}\', \'{}\''
+                .format(customer_name, customer_email))).lastrowid
+        order_id = conn.execute(text('INSERT INTO orders(customer_id) VALUES({})'
+                                     .format(customer_id))).lastrowid
+        for citrus_tree_id in citrus_trees_ids:
+            conn.execute(text('''INSERT INTO citrus_trees_to_orders(order_id, 
+                              citrus_tree_id) VALUES({}, {})'''.format(order_id,
+                         citrus_tree_id)))
+        conn.commit()
+        return order_id
+        
+
 with engine.connect() as conn:
 
     conn.execute(text('DROP TABLE IF EXISTS citrus_trees_to_orders'))
@@ -48,14 +70,15 @@ with engine.connect() as conn:
                     variety VARCHAR(30), type VARCHAR(30), 
                     price INT NOT NULL CHECK(price > 0),
                     quantity INT DEFAULT 0 CHECK(quantity >= 0))'''))
-    conn.execute(text('''CREATE TABLE customers(customer_id INT PRIMARY KEY, 
+    conn.execute(text('''CREATE TABLE customers(customer_id INT PRIMARY KEY AUTO_INCREMENT, 
                     email VARCHAR(50) NOT NULL UNIQUE, name VARCHAR(30))''')) 
-    conn.execute(text('''CREATE TABLE orders(order_id INT PRIMARY KEY, 
+    conn.execute(text('''CREATE TABLE orders(order_id INT PRIMARY KEY AUTO_INCREMENT, 
                     customer_id INT, 
-                    status ENUM('IN_PROGRESS', 'FULFILLED', 'CANCELLED') NOT NULL,
+                    status ENUM('IN_PROGRESS', 'FULFILLED', 'CANCELLED') NOT NULL
+                    DEFAULT 'IN_PROGRESS',
                     CONSTRAINT customer_refer FOREIGN KEY(customer_id) 
                     REFERENCES customers(customer_id))'''))               
-    conn.execute(text('''CREATE TABLE citrus_trees_to_orders(id INT PRIMARY KEY, 
+    conn.execute(text('''CREATE TABLE citrus_trees_to_orders(id INT PRIMARY KEY AUTO_INCREMENT, 
                     citrus_tree_id INT, order_id INT,
                     CONSTRAINT citrus_tree_refer FOREIGN KEY(citrus_tree_id)
                     REFERENCES citrus_trees(tree_id),
@@ -119,10 +142,12 @@ with engine.connect() as conn:
                  VALUES('{}', '{}', {}, {})'''
     for citrus_type in citruses.keys():
         for citrus in citruses[citrus_type]:
-            conn.execute(text(statement.format(citrus['variety'], citrus_type, 
+            result = conn.execute(text(statement.format(citrus['variety'], citrus_type, 
                                           citrus['price'], 
                                           citrus['quantity'])))
+            print(result.lastrowid)
     conn.commit()
+    #conn.
     
     #print(search_citrus_trees())
     for record in search_citrus_trees(type = 'Mandarin', min_price = 20, 
