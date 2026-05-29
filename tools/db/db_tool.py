@@ -41,14 +41,15 @@ def create_order(customer_email : str, customer_name : str,
                  citrus_trees_ids : list):
     with engine.connect() as conn:
         customer_query_result = conn.execute(
-            text('SELECT * FROM customers WHERE email LIKE ' + customer_email))
+            text('SELECT * FROM customers WHERE email LIKE \''
+                 + customer_email + '\'')).mappings().all()
         customer_id = None
         if(len(customer_query_result) > 0):
-            customer_id = customer_query_result.lastidrow
+            customer_id = customer_query_result[0]['customer_id']
         else:
             customer_id = conn.execute(text(
-                'INSERT INTO customers(email, name) VALUES(\'{}\', \'{}\''
-                .format(customer_name, customer_email))).lastrowid
+                'INSERT INTO customers(email, name) VALUES(\'{}\', \'{}\')'
+                .format(customer_email, customer_name))).lastrowid
         order_id = conn.execute(text('INSERT INTO orders(customer_id) VALUES({})'
                                      .format(customer_id))).lastrowid
         for citrus_tree_id in citrus_trees_ids:
@@ -145,11 +146,12 @@ with engine.connect() as conn:
             result = conn.execute(text(statement.format(citrus['variety'], citrus_type, 
                                           citrus['price'], 
                                           citrus['quantity'])))
-            print(result.lastrowid)
     conn.commit()
-    #conn.
     
-    #print(search_citrus_trees())
-    for record in search_citrus_trees(type = 'Mandarin', min_price = 20, 
+for record in search_citrus_trees(type = 'Mandarin', min_price = 20, 
                                       max_price = 25, quantity = 3):
-        print(record)
+    print(record)
+        
+print(create_order('dmytro@mail.com', 'Dmytro', [1, 7, 10, 20]))
+print(create_order('johnodonnel@mail.com', 'John O\\\'Donnel', [5, 14, 22]))
+print(create_order('dmytro@mail.com', 'Dmytro', [12, 9, 11, 32]))
