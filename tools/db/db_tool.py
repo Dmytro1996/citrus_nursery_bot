@@ -6,7 +6,14 @@ Created on Tue May 26 15:47:50 2026
 """
 import sqlalchemy
 from sqlalchemy import text
+from langchain_core.tools import Tool
+from dataclasses import dataclass
 import os
+
+@dataclass
+class OrderItem:
+    citrus_tree_id: int
+    quantity: int
 
 engine = sqlalchemy.create_engine(os.environ['DB_DIALECT'] + '+'
                                   + os.environ['DB_DRIVER'] + '://' 
@@ -38,7 +45,7 @@ def search_citrus_trees(type = None, variety = None, min_price = None,
     return result
 
 def create_order(customer_email : str, customer_name : str, 
-                 citrus_trees_ids : list):
+                 order_items : list[OrderItem]):
     with engine.connect() as conn:
         customer_query_result = conn.execute(
             text('SELECT * FROM customers WHERE email LIKE \''
@@ -52,10 +59,11 @@ def create_order(customer_email : str, customer_name : str,
                 .format(customer_email, customer_name))).lastrowid
         order_id = conn.execute(text('INSERT INTO orders(customer_id) VALUES({})'
                                      .format(customer_id))).lastrowid
-        for citrus_tree_id in citrus_trees_ids:
+        for order_item in order_items:
             conn.execute(text('''INSERT INTO citrus_trees_to_orders(order_id, 
-                              citrus_tree_id) VALUES({}, {})'''.format(order_id,
-                         citrus_tree_id)))
+                              citrus_tree_id, quantity) VALUES({}, {}, {})'''
+                         .format(order_id, order_item.citrus_tree_id, 
+                                 order_item.quantity)))
         conn.commit()
         return order_id
         
@@ -80,7 +88,7 @@ with engine.connect() as conn:
                     CONSTRAINT customer_refer FOREIGN KEY(customer_id) 
                     REFERENCES customers(customer_id))'''))               
     conn.execute(text('''CREATE TABLE citrus_trees_to_orders(id INT PRIMARY KEY AUTO_INCREMENT, 
-                    citrus_tree_id INT, order_id INT,
+                    citrus_tree_id INT, order_id INT, quantity INT DEFAULT 1,
                     CONSTRAINT citrus_tree_refer FOREIGN KEY(citrus_tree_id)
                     REFERENCES citrus_trees(tree_id),
                     CONSTRAINT order_refer FOREIGN KEY(order_id)
@@ -152,6 +160,18 @@ for record in search_citrus_trees(type = 'Mandarin', min_price = 20,
                                       max_price = 25, quantity = 3):
     print(record)
         
-print(create_order('dmytro@mail.com', 'Dmytro', [1, 7, 10, 20]))
-print(create_order('johnodonnel@mail.com', 'John O\\\'Donnel', [5, 14, 22]))
-print(create_order('dmytro@mail.com', 'Dmytro', [12, 9, 11, 32]))
+print(create_order('dmytro@mail.com', 'Dmytro', 
+                   [OrderItem(1, 1), OrderItem(7, 1), OrderItem(10, 1), 
+                    OrderItem(20, 1)]))
+print(create_order('johnodonnel@mail.com', 'John O\\\'Donnel', 
+                   [OrderItem(5, 2), OrderItem(14, 2), OrderItem(22, 1)]))
+print(create_order('dmytro@mail.com', 'Dmytro', 
+                   [OrderItem(12, 2), OrderItem(9, 2), OrderItem(11, 3), 
+                    OrderItem(32, 1)]))
+
+citrus_search_tool = Tool(name = 'citrus_search_tool', 
+                          func = search_citrus_trees,
+                          description = 'Searches for citrus trees.')
+ordering_tool = Tool(name = 'ordering_tool', 
+                          func = create_order,
+                          description = 'Creates an order.')
