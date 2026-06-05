@@ -15,7 +15,9 @@ import os
 import nest_asyncio
 import sys
 sys.path.insert(1, os.getcwd() + '/tools/email')
+sys.path.insert(1, os.getcwd() + '/tools/email')
 from email_tool import email_tool
+from db_tool import citrus_search_tool, ordering_tool
 
 class TelegramAIBot:
     
