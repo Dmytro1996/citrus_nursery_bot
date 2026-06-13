@@ -6,8 +6,9 @@ Created on Tue May 26 15:47:50 2026
 """
 import sqlalchemy
 from sqlalchemy import text
-from langchain_core.tools import Tool
+from langchain_core.tools import tool
 from dataclasses import dataclass
+from typing import Optional
 import os
 
 @dataclass
@@ -22,8 +23,22 @@ engine = sqlalchemy.create_engine(os.environ['DB_DIALECT'] + '+'
                                   + os.environ['DB_HOST'] + ':'
                                   + os.environ['DB_PORT'] + '/citrus_nursery')
 
-def search_citrus_trees(type = None, variety = None, min_price = None, 
-                        max_price = None, quantity = None):
+@tool
+def search_citrus_trees(type: Optional[str] = None, 
+                        variety: Optional[str]  = None, 
+                        min_price: Optional[str]  = None, 
+                        max_price: Optional[str]  = None, 
+                        quantity: Optional[str]  = None):
+    """Searches for citrus trees
+    
+    Args:
+        type: type of citrus tree(mandarin, orange, lemon, lime, grapefruit, etc..)
+        variety: a variety of citrus tree.
+        min price: minimal price.
+        max_price: maximal price.
+        quantity: maximal quantity.
+    """
+    
     query = 'SELECT * FROM citrus_trees'
     where_conditions = []
     result = None
@@ -40,12 +55,23 @@ def search_citrus_trees(type = None, variety = None, min_price = None,
     if(len(where_conditions) >0):
         query += ' WHERE '
     with engine.connect() as conn:
+        print(query + ' AND '.join(where_conditions))
         result = conn.execute(
             text(query + ' AND '.join(where_conditions))).mappings().all()
     return result
 
+@tool
 def create_order(customer_email : str, customer_name : str, 
                  order_items : list[OrderItem]):
+    """Creates an order
+    
+    Args:
+        customer_email: customer's email
+        customer_name: customer's name
+        order_items: List of OrderItem objects. Each OrderItem object, 
+        contains citrus_tree_id and quantity, as properties.
+    """
+    
     with engine.connect() as conn:
         customer_query_result = conn.execute(
             text('SELECT * FROM customers WHERE email LIKE \''
@@ -156,22 +182,14 @@ with engine.connect() as conn:
                                           citrus['quantity'])))
     conn.commit()
     
-for record in search_citrus_trees(type = 'Mandarin', min_price = 20, 
-                                      max_price = 25, quantity = 3):
-    print(record)
+#for record in search_citrus_trees(variety = '%Satsuma%', type = 'mandarin'):
+#    print(record)
         
-print(create_order('dmytro@mail.com', 'Dmytro', 
-                   [OrderItem(1, 1), OrderItem(7, 1), OrderItem(10, 1), 
-                    OrderItem(20, 1)]))
-print(create_order('johnodonnel@mail.com', 'John O\\\'Donnel', 
-                   [OrderItem(5, 2), OrderItem(14, 2), OrderItem(22, 1)]))
-print(create_order('dmytro@mail.com', 'Dmytro', 
-                   [OrderItem(12, 2), OrderItem(9, 2), OrderItem(11, 3), 
-                    OrderItem(32, 1)]))
-
-citrus_search_tool = Tool(name = 'citrus_search_tool', 
-                          func = search_citrus_trees,
-                          description = 'Searches for citrus trees.')
-ordering_tool = Tool(name = 'ordering_tool', 
-                          func = create_order,
-                          description = 'Creates an order.')
+#print(create_order('dmytro@mail.com', 'Dmytro', 
+#                   [OrderItem(1, 1), OrderItem(7, 1), OrderItem(10, 1), 
+#                    OrderItem(20, 1)]))
+#print(create_order('johnodonnel@mail.com', 'John O\\\'Donnel', 
+#                   [OrderItem(5, 2), OrderItem(14, 2), OrderItem(22, 1)]))
+#print(create_order('dmytro@mail.com', 'Dmytro', 
+#                   [OrderItem(12, 2), OrderItem(9, 2), OrderItem(11, 3), 
+#                    OrderItem(32, 1)]))
