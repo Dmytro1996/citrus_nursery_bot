@@ -82,15 +82,20 @@ def create_order(customer_email : str, customer_name : str,
             customer_id = customer_query_result[0]['customer_id']
         else:
             customer_id = conn.execute(text(
-                'INSERT INTO customers(email, name) VALUES(\'{}\', \'{}\')'
-                .format(customer_email, customer_name))).lastrowid
-        order_id = conn.execute(text('INSERT INTO orders(customer_id) VALUES({})'
-                                     .format(customer_id))).lastrowid
+                'INSERT INTO customers(email, name) VALUES(:email, :name)'),
+                {"email": customer_email, "name": customer_name}).lastrowid
+        order_id = conn.execute(
+        text('INSERT INTO orders(customer_id) VALUES(:customer_id)'),
+        {"customer_id": customer_id}).lastrowid
         for order_item in order_items:
             conn.execute(text('''INSERT INTO citrus_trees_to_orders(order_id, 
-                              citrus_tree_id, quantity) VALUES({}, {}, {})'''
-                         .format(order_id, order_item.citrus_tree_id, 
-                                 order_item.quantity)))
+                              citrus_tree_id, quantity) VALUES(:order_id, 
+                              :citrus_tree_id, :quantity)'''),
+                         {
+                             "order_id": order_id, 
+                             "citrus_tree_id": order_item.citrus_tree_id, 
+                             "quantity": order_item.quantity
+                          })
         conn.commit()
         return order_id
         
@@ -175,12 +180,16 @@ with engine.connect() as conn:
             }
 
     statement = '''INSERT INTO citrus_trees(variety, type, price, quantity)
-                 VALUES('{}', '{}', {}, {})'''
+                 VALUES(:variety, :type, :price, :quantity)'''
     for citrus_type in citruses.keys():
         for citrus in citruses[citrus_type]:
-            result = conn.execute(text(statement.format(citrus['variety'], citrus_type, 
-                                          citrus['price'], 
-                                          citrus['quantity'])))
+            result = conn.execute(text(statement),
+                                  {
+                                      "variety" :citrus['variety'], 
+                                      "type": citrus_type, 
+                                      "price": citrus['price'], 
+                                      "quantity": citrus['quantity']
+                                  })
     conn.commit()
     
 #for record in search_citrus_trees(variety = '%Satsuma%', type = 'mandarin'):
