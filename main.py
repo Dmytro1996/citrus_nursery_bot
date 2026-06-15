@@ -7,6 +7,7 @@ Created on Thu May  7 18:08:12 2026
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 import os
@@ -23,7 +24,6 @@ class TelegramAIBot:
         self.app = Application.builder().token(auth_token).build()
         self.app.add_handler(MessageHandler(filters.TEXT, self.process_message))
         self.agent = agent
-        #self.prompt = prompt
         self.conversation_history = {}
         
     def start_polling(self):
@@ -35,21 +35,23 @@ class TelegramAIBot:
         print('Message received. Begining processing...')
         message = update.message.text
         chat_id = update.message.chat.id
-        if(not (chat_id in self.conversation_history.keys())):
-            self.conversation_history[chat_id] = ['User: ' + message]
-        else:
-            self.conversation_history[chat_id].append('User: ' + message)
-        if(len(self.conversation_history[chat_id])>10):
-            self.conversation_history[chat_id].pop(0)
-            self.conversation_history[chat_id].pop(0)
-        print(self.conversation_history[chat_id])
+        print(self.conversation_history.get(chat_id, []))
         response = self.agent.invoke({
-            "input" : "\n".join(self.conversation_history[chat_id])}
+            "input" : message,
+            "chat_history" : self.conversation_history.get(chat_id, [])
+            }
             )['output'][0]['text']
         print('User\'s message:\n' + message)
         print('LLM\'s response:\n' + response)
         await update.message.reply_text(response)
-        self.conversation_history[chat_id].append('Clementine: ' + response)
+        if(not (chat_id in self.conversation_history.keys())):
+            self.conversation_history[chat_id] = [HumanMessage(message)]
+        else:
+            self.conversation_history[chat_id].append(HumanMessage(message))
+        if(len(self.conversation_history[chat_id])>10):
+            self.conversation_history[chat_id].pop(0)
+            self.conversation_history[chat_id].pop(0)
+        self.conversation_history[chat_id].append(AIMessage(response))
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", """Your name is Clementine and you are a Telegram chatbot, 
@@ -67,13 +69,12 @@ with his order id, using send_email tool.
 Try to keep your generated messages as short as possible, 
 especially replies for /start and /help, remember - it's a chat in Telegram.
 """),
+    ("placeholder", "{chat_history}"),
     ("human", "{input}"),
-    ("placeholder", "{agent_scratchpad}")])
+    ("placeholder", "{agent_scratchpad}")    ])
 
 llm = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite", 
                              api_key = os.environ['GOOGLE_GENAI_API_KEY'])
-#print(type(email_tool))
-#tools = [email_tool, citrus_search_tool, ordering_tool]
 tools = [send_email, search_citrus_trees, create_order]
 agent = create_tool_calling_agent(llm = llm, prompt = prompt, tools = tools)
 agent_executor = AgentExecutor(agent = agent, tools = tools, verbose = True)
