@@ -33,7 +33,8 @@ def search_citrus_trees(type: Optional[str] = None,
     
     Args:
         type: type of citrus tree(mandarin, orange, lemon, lime, grapefruit, etc..)
-        variety: a variety of citrus tree.
+        variety: a variety of citrus tree. Surround it by '%' symbols to widen 
+        the search.
         min price: minimal price.
         max_price: maximal price.
         quantity: maximal quantity.
